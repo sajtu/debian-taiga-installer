@@ -1,9 +1,8 @@
-# debian-taiga-installer
-# Taiga installer for Debian
-# by Sean Tu
-# git clone https://github.com/sajtu/debian-taiga-installer
-# Provided AS-IS.
-# MIT License: See LICENSE file.
+# debian-taiga-installer - Taiga installer for Debian
+by Sean Tu
+git clone https://github.com/sajtu/debian-taiga-installer
+Provided AS-IS.
+MIT License: See LICENSE file.
 
 `debian-setup-taiga.bash` performs an interactive, single-Taiga deployment using
 Taiga's official stable Docker Compose repository.
