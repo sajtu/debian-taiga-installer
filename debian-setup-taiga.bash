@@ -554,7 +554,7 @@ write_compose_override() {
 
   log "Adding restart policies in ${override_file}."
   cat >"$override_file" <<'EOF'
-# Managed initially by install-taiga.sh.
+# Managed initially by debian-setup-taiga.bash.
 # Keeps Taiga containers running after individual process failures or daemon restarts.
 services:
   taiga-db:
@@ -707,6 +707,45 @@ wait_for_taiga_stack() {
   die "PostgreSQL did not become healthy."
 }
 
+wait_for_taiga_api() {
+  local attempt
+  local http_status
+
+  log "Waiting for Taiga's built-in database initialization and API startup."
+  for attempt in {1..120}; do
+    http_status="$(
+      curl \
+        --silent \
+        --show-error \
+        --output /dev/null \
+        --write-out '%{http_code}' \
+        --max-time 5 \
+        http://127.0.0.1:9000/api/v1/ 2>/dev/null || true
+    )"
+
+    case "$http_status" in
+      2??|3??|400|401|403|404|405)
+        log "Taiga API is responding on the local gateway (HTTP ${http_status})."
+        return
+        ;;
+    esac
+    sleep 2
+  done
+
+  run_compose ps || true
+  run_compose logs --tail=150 taiga-back || true
+  die "Taiga's API did not become ready within four minutes."
+}
+
+verify_database_migrations() {
+  log "Verifying that Taiga's built-in startup applied all database migrations."
+  (
+    cd "$INSTALL_DIR"
+    run_as_service ./taiga-manage.sh migrate --check
+  )
+  log "Database verification succeeded; no pending migrations remain."
+}
+
 maybe_create_superuser() {
   if ! confirm "Create the initial Taiga administrator now?" "yes"; then
     warn "Administrator creation skipped."
@@ -801,8 +840,11 @@ main() {
   install_systemd_unit
   start_taiga
   wait_for_taiga_stack
+  wait_for_taiga_api
+  verify_database_migrations
   maybe_create_superuser
   show_completion
 }
 
 main "$@"
+
